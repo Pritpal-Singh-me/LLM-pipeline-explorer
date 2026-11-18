@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Pipeline Explorer</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #111;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    h1.page-title {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      color: #111;
+      letter-spacing: -0.3px;
+    }
+
+    /* ── Section card ── */
+    .section {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 1.6rem 1.8rem;
+      max-width: 860px;
+      margin: 0 auto 2rem;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      color: #111;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 0.4rem;
+    }
+
+    textarea {
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 0.7rem 0.9rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: #111;
+      background: #fafafa;
+      resize: vertical;
+      outline: none;
+      transition: border 0.15s;
+    }
+
+    textarea:focus {
+      border-color: #555;
+      background: #fff;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-block;
+      padding: 0.52rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn:hover {
+      opacity: 0.85;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #111;
+      color: #fff;
+    }
+
+    /* ── Vocab bar ── */
+    #vocab-bar-wrap {
+      margin: 1rem 0 0.3rem;
+    }
+
+    #vocab-bar-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #333;
+    }
+
+    #vocab-bar-track {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    #vocab-bar-fill {
+      height: 100%;
+      background: #2563eb;
+      border-radius: 99px;
+      transition: width 0.3s;
+    }
+
+    #vocab-bar-hint {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 0.4rem;
+      font-style: italic;
+    }
+
+    /* ── Vocab table ── */
+    #vocab-summary {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin: 1.1rem 0 0.6rem;
+      color: #333;
+    }
+
+    .vocab-table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    thead tr {
+      background: #f0f0f0;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.52rem 0.9rem;
+      border: 1px solid #e0e0e0;
+    }
+
+    th {
+      font-weight: 700;
+      color: #333;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .freq-bar {
+      display: inline-block;
+      height: 10px;
+      background: #93c5fd;
+      border-radius: 3px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── Token chips ── */
+    #token-output {
+      min-height: 48px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+      background: #fafafa;
+      line-height: 2.2;
+      font-size: 0.9rem;
+      margin-top: 0.6rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 6px;
+      align-items: center;
+    }
+
+    .token-chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: default;
+      border: 1px solid transparent;
+      position: relative;
+    }
+
+    .token-chip:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #111;
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* token color palette — 10 distinct pastel combos */
+    .tc-0 {
+      background: #dbeafe;
+      color: #1e3a8a;
+      border-color: #93c5fd;
+    }
+
+    .tc-1 {
+      background: #dcfce7;
+      color: #14532d;
+      border-color: #86efac;
+    }
+
+    .tc-2 {
+      background: #fef9c3;
+      color: #713f12;
+      border-color: #fde047;
+    }
+
+    .tc-3 {
+      background: #fce7f3;
+      color: #831843;
+      border-color: #f9a8d4;
+    }
+
+    .tc-4 {
+      background: #ede9fe;
+      color: #3b0764;
+      border-color: #c4b5fd;
+    }
+
+    .tc-5 {
+      background: #ffedd5;
+      color: #7c2d12;
+      border-color: #fdba74;
+    }
+
+    .tc-6 {
+      background: #cffafe;
+      color: #164e63;
+      border-color: #67e8f9;
+    }
+
+    .tc-7 {
+      background: #ecfccb;
+      color: #365314;
+      border-color: #a3e635;
+    }
+
+    .tc-8 {
+      background: #fee2e2;
+      color: #7f1d1d;
+      border-color: #fca5a5;
+    }
+
+    .tc-9 {
+      background: #f1f5f9;
+      color: #1e293b;
+      border-color: #94a3b8;
+    }
+
+    .tc-unk {
+      background: #f3f4f6;
+      color: #6b7280;
+      border-color: #d1d5db;
+      font-style: italic;
+    }
+
+    /* punctuation chip */
+    .tc-punct {
+      background: #fff7ed;
+      color: #9a3412;
+      border-color: #fdba74;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 1.2rem 0;
+    }
+
+    /* example pills */
+    .examples-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .example-pill {
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      color: #333;
+      transition: background 0.15s;
+    }
+
+    .example-pill:hover {
+      background: #e0e0e0;
+    }
+
+    .row-gap {
+      margin-top: 0.8rem;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 0.7rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    /* ── Embeddings section ── */
+    .canvas-wrap {
+      position: relative;
+      margin-top: 1rem;
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .canvas-tool-group {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .canvas-tool-btn {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .canvas-tool-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+
+    #embed-canvas {
+      display: block;
+      width: 100%;
+      height: 520px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fbfcfd;
+      cursor: grab;
+      touch-action: none;
+      box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.02);
+    }
+
+    #embed-canvas:active {
+      cursor: grabbing;
+    }
+
+    .embed-hint {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 0.4rem;
+      font-style: italic;
+    }
+
+    #embed-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      margin-top: 0.9rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: #333;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid;
+      flex-shrink: 0;
+    }
+
+    .info-box {
+      background: #f8f9fa;
+      border-left: 3px solid #2563eb;
+      padding: 0.6rem 0.9rem;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.82rem;
+      color: #444;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+
+    /* ── Sentence similarity block ── */
+    .sim-card {
+      background: #fcfcfc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1.2rem;
+      margin-top: 1.6rem;
+    }
+
+    .sim-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+      color: #111;
+    }
+
+    .sim-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+
+    .sim-preset-btn {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sim-preset-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .sim-inputs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 680px) {
+      .sim-inputs-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .sim-input-col label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.3rem;
+    }
+
+    .sim-select {
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 0.5rem 0.7rem;
+      font-size: 0.84rem;
+      background: #fff;
+      color: #111;
+      margin-bottom: 0.4rem;
+      outline: none;
+    }
+
+    .sim-input-text {
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 0.55rem 0.8rem;
+      font-size: 0.86rem;
+      background: #fff;
+      color: #111;
+      outline: none;
+    }
+
+    .sim-input-text:focus,
+    .sim-select:focus {
+      border-color: #2563eb;
+    }
+
+    .sim-result-box {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .sim-score-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .sim-score-num {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #2563eb;
+      font-feature-settings: "tnum";
+    }
+
+    .sim-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+
+    .sim-badge-high {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    .sim-badge-mid {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde047;
+    }
+
+    .sim-badge-low {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    .sim-bar-track {
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .sim-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 99px;
+      background: #2563eb;
+      transition: width 0.3s ease, background-color 0.3s;
+    }
+
+    .sim-explanation {
+      font-size: 0.82rem;
+      color: #555;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1 class="page-title">LLM Pipeline Explorer</h1>
+
+  <!-- ═══════════════════════════════════════════
+     SECTION 1 — TOKENIZER
+════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">1. Tokenizer</div>
+
+    <!-- Training corpus -->
+    <label for="corpus-input">Sentences to learn words from</label>
+    <textarea id="corpus-input" rows="6">The cat sat on the mat.
+The dog sat on the rug.
+The cat saw the dog!
+A dog and a cat can be friends.
+Do you like the cat?
+I don't like the rain, but I like the sun.
+Transformers are powerful language models.
+The model learns from a large dataset of text.</textarea>
+
+    <div class="row-gap">
+      <button class="btn btn-primary" id="btn-build-vocab">Build Vocabulary</button>
+    </div>
+
+    <!-- Vocab bar -->
+    <div id="vocab-bar-wrap" style="display:none">
+      <div id="vocab-bar-label"></div>
+      <div id="vocab-bar-track">
+        <div id="vocab-bar-fill" style="width:100%"></div>
+      </div>
+      <div id="vocab-bar-hint">Vocabulary built from your sentences above. Rare words may be split into subword pieces.
+      </div>
+    </div>
+
+    <!-- Vocab table -->
+    <div id="vocab-summary" style="display:none"></div>
+    <div class="vocab-table-wrap" id="vocab-table-wrap" style="display:none">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Token</th>
+            <th>Frequency</th>
+          </tr>
+        </thead>
+        <tbody id="vocab-tbody"></tbody>
+      </table>
+    </div>
+
+    <hr class="divider" id="encode-divider" style="display:none">
+
+    <!-- Encode a sentence -->
+    <div id="encode-section" style="display:none">
+      <label>Encode a sentence</label>
+
+      <div class="examples-row" id="examples-row">
+        <!-- filled by JS -->
+      </div>
+
+      <div class="flex-row">
+        <textarea id="encode-input" rows="2" placeholder="Type your own sentence…"
+          style="flex:1">The dogs liked the sunny zebra.</textarea>
+      </div>
+      <div class="row-gap">
+        <button class="btn btn-secondary" id="btn-tokenize">Tokenize</button>
+      </div>
+
+      <div id="token-output" style="display:none"></div>
+
+      <div id="token-legend" style="display:none; margin-top:0.6rem; font-size:0.78rem; color:#555;">
+        Hover over a chip to see its token ID. <span
+          style="background:#f3f4f6;padding:2px 6px;border-radius:3px;border:1px solid #d1d5db;font-style:italic;">[UNK]</span>
+        = unknown / out-of-vocabulary token.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────────
+    //  Minimal BPE-inspired tokenizer (client-side)
+    //  Strategy:
+    //   1. Build vocab from corpus (word + punctuation splitting)
+    //   2. Words below min-freq get broken into char-level subwords
+    //   3. Unknown words in encode phase → char-level or [UNK]
+    // ─────────────────────────────────────────────
+
+    const EXAMPLES = [
+      "The cat sat on the mat.",
+      "I don't like the rain.",
+      "Transformers are amazing!",
+      "The dogs liked the sunny zebra.",
+      "A large language model learns from text."
+    ];
+
+    const PUNCT_RE = /([.,!?;:'"\(\)\[\]…\-])/g;
+
+    function splitIntoPieces(text) {
+      // split on whitespace, then separate punctuation
+      return text.trim().split(/\s+/).flatMap(word => {
+        const parts = word.split(PUNCT_RE).filter(Boolean);
+        return parts;
+      });
+    }
+
+    function normalise(str) { return str.toLowerCase(); }
+
+    // Build vocab from corpus
+    function buildVocab(corpusText) {
+      const freq = {};
+      const pieces = splitIntoPieces(corpusText);
+      for (const p of pieces) {
+        const key = normalise(p);
+        if (!key) continue;
+        freq[key] = (freq[key] || 0) + 1;
+      }
+
+      // Assign IDs: [UNK] first, then sorted by freq desc, then alpha
+      const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+      const vocab = { '[UNK]': { id: 0, freq: 0 } };
+      let id = 1;
+      for (const [token, f] of sorted) {
+        vocab[token] = { id: id++, freq: f };
+      }
+
+      // Also add char-level entries for every unique char (so unknown words can be split)
+      const chars = new Set(corpusText.toLowerCase().replace(/\s/g, ''));
+      for (const ch of chars) {
+        if (!vocab[ch]) vocab[ch] = { id: id++, freq: 0 };
+      }
+
+      return vocab;
+    }
+
+    // Tokenize a string against a vocab
+    function tokenize(text, vocab) {
+      const pieces = splitIntoPieces(text);
+      const result = [];
+
+      for (const piece of pieces) {
+        const key = normalise(piece);
+        if (!key) continue;
+
+        if (vocab[key]) {
+          result.push({ surface: piece, token: key, id: vocab[key].id, type: 'word' });
+        } else {
+          // try char-level decomposition
+          const chars = [...key];
+          let allKnown = true;
+          const sub = chars.map(ch => {
+            if (vocab[ch]) return { surface: ch, token: ch, id: vocab[ch].id, type: 'subword' };
+            allKnown = false;
+            return { surface: ch, token: '[UNK]', id: 0, type: 'unk' };
+          });
+          if (allKnown) {
+            result.push(...sub.map(s => ({ ...s, type: 'subword' })));
+          } else {
+            result.push({ surface: piece, token: '[UNK]', id: 0, type: 'unk' });
+          }
+        }
+      }
+      return result;
+    }
+
+    // ── Color assignment: each unique token-id gets a consistent color class
+    function colorClass(id, type) {
+      if (type === 'unk') return 'tc-unk';
+      if (/^[.,!?;:'"\(\)\[\]…\-]+$/.test(id.toString())) return 'tc-punct';
+      return 'tc-' + (id % 10);
+    }
+
+    // ── State
+    let currentVocab = null;
+
+    // ── DOM refs
+    const corpusInput = document.getElementById('corpus-input');
+    const btnBuild = document.getElementById('btn-build-vocab');
+    const vocabBarWrap = document.getElementById('vocab-bar-wrap');
+    const vocabBarLabel = document.getElementById('vocab-bar-label');
+    const vocabBarFill = document.getElementById('vocab-bar-fill');
+    const vocabSummary = document.getElementById('vocab-summary');
+    const vocabTableWrap = document.getElementById('vocab-table-wrap');
+    const vocabTbody = document.getElementById('vocab-tbody');
+    const encodeDivider = document.getElementById('encode-divider');
+    const encodeSection = document.getElementById('encode-section');
+    const encodeInput = document.getElementById('encode-input');
+    const btnTokenize = document.getElementById('btn-tokenize');
+    const tokenOutput = document.getElementById('token-output');
+    const tokenLegend = document.getElementById('token-legend');
+    const examplesRow = document.getElementById('examples-row');
+
+    // ── Populate example pills
+    EXAMPLES.forEach(ex => {
+      const pill = document.createElement('span');
+      pill.className = 'example-pill';
+      pill.textContent = ex;
+      pill.addEventListener('click', () => {
+        encodeInput.value = ex;
+        if (currentVocab) renderTokens();
+      });
+      examplesRow.appendChild(pill);
+    });
+
+    // ── Build Vocabulary
+    btnBuild.addEventListener('click', () => {
+      const text = corpusInput.value.trim();
+      if (!text) return;
+
+      currentVocab = buildVocab(text);
+
+      // Count real (non-char-only, non-UNK) word tokens for the bar
+      const wordTokens = Object.entries(currentVocab).filter(([k, v]) => k !== '[UNK]' && k.length > 1 && v.freq > 0);
+      const total = Object.keys(currentVocab).length;
+      const wordCount = wordTokens.length;
+
+      // Bar
+      vocabBarWrap.style.display = 'block';
+      vocabBarLabel.textContent = `Words kept in vocabulary: ${wordCount} of ${wordCount}`;
+      vocabBarFill.style.width = '100%';
+
+      // Summary
+      vocabSummary.style.display = 'block';
+      vocabSummary.textContent = `Vocabulary size: ${total} tokens (${wordCount} words + subword characters + [UNK])`;
+
+      // Table — show only freq > 0 tokens sorted by freq
+      const tableEntries = Object.entries(currentVocab)
+        .filter(([k, v]) => v.freq > 0 || k === '[UNK]')
+        .sort((a, b) => a[1].id - b[1].id);
+
+      const maxFreq = Math.max(...tableEntries.map(e => e[1].freq), 1);
+
+      vocabTbody.innerHTML = '';
+      for (const [token, { id, freq }] of tableEntries) {
+        const tr = document.createElement('tr');
+        const barW = freq > 0 ? Math.round((freq / maxFreq) * 80) : 0;
+        tr.innerHTML = `
+      <td>${id}</td>
+      <td><code style="font-size:0.85rem">${escHtml(token)}</code></td>
+      <td>${freq > 0
+            ? `${freq}<span class="freq-bar" style="width:${barW}px"></span>`
+            : '–'}</td>`;
+        vocabTbody.appendChild(tr);
+      }
+
+      vocabTableWrap.style.display = 'block';
+      encodeDivider.style.display = 'block';
+      encodeSection.style.display = 'block';
+    });
+
+    // ── Tokenize
+    btnTokenize.addEventListener('click', renderTokens);
+    encodeInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); renderTokens(); } });
+
+    function renderTokens() {
+      if (!currentVocab) return;
+      const text = encodeInput.value.trim();
+      if (!text) return;
+
+      const tokens = tokenize(text, currentVocab);
+
+      tokenOutput.style.display = 'flex';
+      tokenLegend.style.display = 'block';
+      tokenOutput.innerHTML = '';
+
+      for (const t of tokens) {
+        const chip = document.createElement('span');
+        chip.className = `token-chip ${colorClass(t.id, t.type)}`;
+        chip.textContent = t.surface;
+        chip.setAttribute('data-tip', `ID: ${t.id}  token: "${t.token}"${t.type === 'subword' ? '  (subword)' : t.type === 'unk' ? '  [UNK]' : ''}`);
+        tokenOutput.appendChild(chip);
+      }
+
+      // token count badge
+      const badge = document.createElement('span');
+      badge.style.cssText = 'margin-left:auto;font-size:0.75rem;color:#888;white-space:nowrap;align-self:center;';
+      badge.textContent = `${tokens.length} token${tokens.length !== 1 ? 's' : ''}`;
+      tokenOutput.appendChild(badge);
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Auto-build vocabulary on load so Section 1 is ready immediately
+    if (btnBuild) {
+      btnBuild.click();
+      renderTokens();
+    }
+  </script>
+
+  <!-- ═══════════════════════════════════════════
+     SECTION 2 — EMBEDDINGS IN 3D
+════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">2. Embeddings in 3D</div>
+
+    <div class="info-box">
+      Sentences are converted into dense semantic embedding vectors. Multidimensional Scaling (MDS) then projects them
+      into 3D space preserving semantic distances.
+      <strong>Similar sentences land close together</strong> even if they use completely different words (like
+      <em>cat/mat</em> and <em>kitten/rug</em>).
+    </div>
+
+    <label for="embed-corpus">Sentences (one per line)</label>
+    <textarea id="embed-corpus" rows="8">The astronaut landed on the moon.
+A spacecraft touched down on lunar soil.
+The chef baked fresh bread in the oven.
+A baker made warm pastries in the kitchen.
+The pianist played a classical symphony.
+A musician performed a melody on the piano.
+Dolphins swam through the deep blue ocean.
+Whales navigated the arctic waters.</textarea>
+
+    <div class="row-gap">
+      <button class="btn btn-primary" id="btn-embed">Embed and plot</button>
+    </div>
+
+    <div class="canvas-wrap" id="canvas-wrap" style="display:none">
+      <div class="canvas-toolbar">
+        <div class="canvas-tool-group">
+          <button class="canvas-tool-btn" id="btn-anim-toggle" type="button"
+            title="Pause or play auto-orbiting animation">
+            <span id="anim-icon">⏸️</span> <span id="anim-text">Pause Animation</span>
+          </button>
+          <button class="canvas-tool-btn" id="btn-reset-view" type="button" title="Reset viewing angle and zoom">
+            🔄 Reset View
+          </button>
+        </div>
+        <div class="canvas-tool-group">
+          <button class="canvas-tool-btn" id="btn-zoom-in" type="button" title="Zoom in">🔍 +</button>
+          <button class="canvas-tool-btn" id="btn-zoom-out" type="button" title="Zoom out">🔍 −</button>
+        </div>
+      </div>
+      <canvas id="embed-canvas" width="820" height="520"></canvas>
+    </div>
+    <p class="embed-hint" id="embed-hint" style="display:none">✨ Smooth auto-orbiting &nbsp;·&nbsp; Hover any sentence
+      card to pause & read &nbsp;·&nbsp; Drag to rotate freely &nbsp;·&nbsp; Scroll to zoom</p>
+
+    <div id="embed-legend"></div>
+
+    <!-- Sentence Similarity Comparator -->
+    <div class="sim-card" id="sim-card" style="display:none">
+      <h3>Sentence Similarity Comparator</h3>
+      <p style="font-size:0.82rem;color:#666;margin-bottom:0.8rem;">
+        Compare any two sentences to inspect their embedding cosine similarity score:
+      </p>
+
+      <div class="sim-presets" id="sim-presets">
+        <span style="font-size:0.75rem;font-weight:700;color:#555;align-self:center;">Try presets:</span>
+        <button class="sim-preset-btn" data-a="The astronaut landed on the moon."
+          data-b="A spacecraft touched down on lunar soil.">🚀 Astronaut vs Spacecraft</button>
+        <button class="sim-preset-btn" data-a="The chef baked fresh bread in the oven."
+          data-b="A baker made warm pastries in the kitchen.">🥐 Chef vs Baker</button>
+        <button class="sim-preset-btn" data-a="The pianist played a classical symphony."
+          data-b="A musician performed a melody on the piano.">🎹 Pianist vs Musician</button>
+        <button class="sim-preset-btn" data-a="Dolphins swam through the deep blue ocean."
+          data-b="Whales navigated the arctic waters.">🐬 Dolphins vs Whales</button>
+        <button class="sim-preset-btn" data-a="The astronaut landed on the moon."
+          data-b="The chef baked fresh bread in the oven.">🚀 Astronaut vs 🥐 Chef (Unrelated)</button>
+      </div>
+
+      <div class="sim-inputs-grid">
+        <div class="sim-input-col">
+          <label for="sim-select-a">Sentence A</label>
+          <select id="sim-select-a" class="sim-select"></select>
+          <input type="text" id="sim-input-a" class="sim-input-text" placeholder="Or type any sentence..." />
+        </div>
+        <div class="sim-input-col">
+          <label for="sim-select-b">Sentence B</label>
+          <select id="sim-select-b" class="sim-select"></select>
+          <input type="text" id="sim-input-b" class="sim-input-text" placeholder="Or type any sentence..." />
+        </div>
+      </div>
+
+      <div class="sim-result-box">
+        <div class="sim-score-row">
+          <div>
+            <span style="font-size:0.82rem;color:#555;font-weight:600;">Cosine Similarity:</span>
+            <span id="sim-score-text" class="sim-score-num">0.00</span>
+          </div>
+          <span id="sim-badge" class="sim-badge sim-badge-high">High Similarity</span>
+        </div>
+        <div class="sim-bar-track">
+          <div id="sim-bar-fill" class="sim-bar-fill"></div>
+        </div>
+        <div id="sim-explanation" class="sim-explanation"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ════════════════════════════════════════════════
+    //  SECTION 2 — Semantic Embeddings & 3D MDS Plot
+    // ════════════════════════════════════════════════
+
+    const CL_STROKE = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#db2777'];
+    const CL_FILL = ['#dbeafe', '#dcfce7', '#fee2e2', '#fef3c7', '#ede9fe', '#cffafe', '#fce7f3'];
+    const CL_NAMES = ['Group A (Space & Cosmos)', 'Group B (Culinary & Baking)', 'Group C (Music & Instruments)', 'Group D (Ocean & Marine)', 'Group E', 'Group F'];
+
+    // ── Semantic Lexicon & Concept Axes (Client-side embeddings)
+    // Dimensions:
+    // 0: Space / Cosmos / Moon / Astronaut / Spacecraft
+    // 1: Touchdown / Landing / Lunar surface
+    // 2: Culinary / Chef / Baker / Cooking
+    // 3: Bread / Pastries / Baked goods
+    // 4: Oven / Kitchen appliances / Warmth
+    // 5: Piano / Pianist / Instruments
+    // 6: Musical performance / Played / Performed
+    // 7: Symphony / Melody / Classical composition
+    // 8: Marine mammals / Dolphins / Whales
+    // 9: Swimming / Marine navigation
+    // 10: Ocean / Sea / Arctic / Deep waters
+    // 11: General animals / Pets / Feline
+    // 12..23: Subword hashing for arbitrary user text
+    const SEMANTIC_VECTORS = {
+      // Space Exploration
+      'astronaut': [1.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'spacecraft': [1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'landed': [0.4, 0.95, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'touched': [0.3, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'down': [0.2, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'moon': [0.95, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'lunar': [0.98, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'soil': [0.4, 0.85, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'space': [1.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+
+      // Culinary & Baking
+      'chef': [0.0, 0.0, 1.0, 0.4, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'baker': [0.0, 0.0, 1.0, 0.6, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'baked': [0.0, 0.0, 0.6, 0.95, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'bread': [0.0, 0.0, 0.4, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'pastries': [0.0, 0.0, 0.4, 0.98, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'oven': [0.0, 0.0, 0.5, 0.6, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'kitchen': [0.0, 0.0, 0.7, 0.4, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'fresh': [0.0, 0.0, 0.3, 0.6, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'warm': [0.0, 0.0, 0.2, 0.4, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+
+      // Music & Instruments
+      'pianist': [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.5, 0.0, 0.0, 0.0, 0.0],
+      'musician': [0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.7, 0.6, 0.0, 0.0, 0.0, 0.0],
+      'piano': [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.4, 0.5, 0.0, 0.0, 0.0, 0.0],
+      'played': [0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.95, 0.6, 0.0, 0.0, 0.0, 0.0],
+      'performed': [0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.98, 0.6, 0.0, 0.0, 0.0, 0.0],
+      'classical': [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.4, 0.9, 0.0, 0.0, 0.0, 0.0],
+      'symphony': [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0],
+      'melody': [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.96, 0.0, 0.0, 0.0, 0.0],
+
+      // Ocean & Marine
+      'dolphins': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.7, 0.3],
+      'dolphin': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.7, 0.3],
+      'whales': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.8, 0.3],
+      'whale': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.8, 0.3],
+      'swam': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.8, 0.0],
+      'swim': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.8, 0.0],
+      'deep': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.3, 0.8, 0.0],
+      'blue': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.6, 0.0],
+      'ocean': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.6, 1.0, 0.0],
+      'waters': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.6, 0.95, 0.0],
+      'navigated': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.85, 0.6, 0.0],
+      'arctic': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.4, 0.85, 0.0],
+
+      // Extra support for previous animal / tech words
+      'cat': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+      'kitten': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.95],
+      'bat': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8],
+      'sat': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5],
+      'mat': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5],
+      'rug': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5],
+      'stock': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'market': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'crashed': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'programming': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'coding': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    };
+
+    const STOPWORDS = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'my', 'i', 'it', 'by']);
+    const EMBED_DIM = 24;
+
+    // ── Word subword hashing for arbitrary out-of-vocabulary words
+    function wordHashVector(word) {
+      const vec = new Float64Array(EMBED_DIM);
+      let h = 0x811c9dc5;
+      for (let i = 0; i < word.length; i++) {
+        h ^= word.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+        const bucket = 12 + Math.abs(h % (EMBED_DIM - 12));
+        vec[bucket] += 1.0;
+      }
+      return vec;
+    }
+
+    // ── Compute Semantic Dense Sentence Embedding
+    function getSentenceEmbedding(sentence) {
+      const words = (sentence.toLowerCase().match(/[a-z]+/g) || []);
+      if (!words.length) return new Float64Array(EMBED_DIM);
+
+      const wordSet = new Set(words);
+      const vec = new Float64Array(EMBED_DIM);
+
+      // Detect context for polysemous "python" / "pythons"
+      const isSnakeContext = wordSet.has('snake') || wordSet.has('snakes') || wordSet.has('reptile') || wordSet.has('large') || wordSet.has('zoo') || wordSet.has('wild');
+      const isCodeContext = wordSet.has('programming') || wordSet.has('coding') || wordSet.has('code') || wordSet.has('developer') || wordSet.has('software') || wordSet.has('language') || wordSet.has('passion');
+
+      let weightSum = 0;
+
+      for (const w of words) {
+        let wWeight = STOPWORDS.has(w) ? 0.08 : 1.0;
+
+        if (w === 'python' || w === 'pythons') {
+          // Disambiguate context
+          if (isSnakeContext && !isCodeContext) {
+            vec[2] += 1.2 * wWeight; // Reptile
+            vec[10] += 0.4 * wWeight; // Size
+          } else {
+            vec[5] += 1.1 * wWeight; // Programming
+            vec[6] += 1.0 * wWeight; // Language
+          }
+          weightSum += wWeight;
+          continue;
+        }
+
+        if (SEMANTIC_VECTORS[w]) {
+          const proto = SEMANTIC_VECTORS[w];
+          for (let d = 0; d < proto.length; d++) {
+            vec[d] += proto[d] * wWeight;
+          }
+          weightSum += wWeight;
+        } else if (!STOPWORDS.has(w)) {
+          // Out-of-vocabulary word: use character subword hash vector
+          const subVec = wordHashVector(w);
+          for (let d = 0; d < EMBED_DIM; d++) {
+            vec[d] += subVec[d] * 0.45;
+          }
+          weightSum += 0.5;
+        }
+      }
+
+      // L2 Normalize
+      let norm = 0;
+      for (let i = 0; i < EMBED_DIM; i++) norm += vec[i] * vec[i];
+      norm = Math.sqrt(norm);
+      if (norm > 0) {
+        for (let i = 0; i < EMBED_DIM; i++) vec[i] /= norm;
+      }
+      return vec;
+    }
+
+    // ── Cosine Similarity between two vectors
+    function cosineSim(v1, v2) {
+      let dot = 0, n1 = 0, n2 = 0;
+      for (let i = 0; i < v1.length; i++) {
+        dot += v1[i] * v2[i];
+        n1 += v1[i] * v1[i];
+        n2 += v2[i] * v2[i];
+      }
+      const denom = Math.sqrt(n1) * Math.sqrt(n2);
+      return denom === 0 ? 0 : Math.max(0, Math.min(1, dot / denom));
+    }
+
+    // ── Classical Metric Multidimensional Scaling (MDS) to 3D
+    // Preserves pairwise distances: d = sqrt(2 * (1 - cosine_sim))
+    function mds3D(vectors) {
+      const n = vectors.length;
+      if (n <= 3) {
+        return vectors.map((v, i) => [i === 0 ? -0.8 : i === 1 ? 0.8 : 0, i === 2 ? 0.8 : 0, 0]);
+      }
+
+      // 1. Squared distance matrix D2
+      const D2 = Array.from({ length: n }, () => new Float64Array(n));
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          if (i === j) { D2[i][j] = 0; }
+          else {
+            const sim = cosineSim(vectors[i], vectors[j]);
+            // Angle distance or chord distance
+            const dist = Math.sqrt(Math.max(0, 2 * (1 - sim)));
+            D2[i][j] = dist * dist;
+          }
+        }
+      }
+
+      // 2. Double centering: B = -0.5 * H * D2 * H
+      const rowMeans = new Float64Array(n);
+      const colMeans = new Float64Array(n);
+      let totalMean = 0;
+
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          rowMeans[i] += D2[i][j] / n;
+          colMeans[j] += D2[i][j] / n;
+          totalMean += D2[i][j] / (n * n);
+        }
+      }
+
+      const B = Array.from({ length: n }, () => new Float64Array(n));
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          B[i][j] = -0.5 * (D2[i][j] - rowMeans[i] - colMeans[j] + totalMean);
+        }
+      }
+
+      // 3. Power iteration to find top 3 eigenvectors & eigenvalues of B
+      const coords = Array.from({ length: n }, () => [0, 0, 0]);
+      let deflB = B.map(row => row.slice());
+
+      for (let comp = 0; comp < 3; comp++) {
+        let ev = new Float64Array(n);
+        for (let i = 0; i < n; i++) ev[i] = Math.sin((i + 1) * (comp + 1.2));
+
+        let lambda = 1.0;
+        for (let iter = 0; iter < 100; iter++) {
+          const nev = new Float64Array(n);
+          for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+              nev[i] += deflB[i][j] * ev[j];
+            }
+          }
+          let norm = 0;
+          for (let i = 0; i < n; i++) norm += nev[i] * nev[i];
+          norm = Math.sqrt(norm);
+          if (norm < 1e-9) break;
+          for (let i = 0; i < n; i++) ev[i] = nev[i] / norm;
+          lambda = norm;
+        }
+
+        const scale = Math.sqrt(Math.max(0, lambda));
+        for (let i = 0; i < n; i++) {
+          coords[i][comp] = ev[i] * scale;
+        }
+
+        // Deflate
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            deflB[i][j] -= lambda * ev[i] * ev[j];
+          }
+        }
+      }
+
+      // Normalize into standard [-1, 1] box for renderer
+      let maxAbs = 0.001;
+      for (let i = 0; i < n; i++) {
+        for (let d = 0; d < 3; d++) {
+          if (Math.abs(coords[i][d]) > maxAbs) maxAbs = Math.abs(coords[i][d]);
+        }
+      }
+      return coords.map(p => p.map(v => (v / maxAbs) * 1.05));
+    }
+
+    // ── Semantic clustering using similarity threshold
+    function clusterSentences(vectors) {
+      const n = vectors.length;
+      const labels = new Array(n).fill(-1);
+      let curCluster = 0;
+
+      for (let i = 0; i < n; i++) {
+        if (labels[i] !== -1) continue;
+        labels[i] = curCluster;
+        for (let j = i + 1; j < n; j++) {
+          if (labels[j] === -1 && cosineSim(vectors[i], vectors[j]) >= 0.65) {
+            labels[j] = curCluster;
+          }
+        }
+        curCluster++;
+      }
+      return labels;
+    }
+
+    // ════════════════════════════════════════════════
+    //  3D Interactive Wireframe Canvas Renderer
+    // ════════════════════════════════════════════════
+    class Scatter3D {
+      constructor(canvas) {
+        this.cv = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.ry = 0.65;  // yaw angle
+        this.rx = -0.32; // pitch angle
+        this.zoom = 1.0;
+        this.drag = false;
+        this.lx = 0; this.ly = 0;
+        this.vx = 0; this.vy = 0; // momentum
+        this.pts = []; this.labels = []; this.sents = []; this.vectors = [];
+        this.labelBounds = [];
+        this.hov = -1;
+        this.animating = true;
+        this.isPausedByUser = false;
+        this.isHoveringCanvas = false;
+        this.animFrameId = null;
+        this.width = 820;
+        this.height = 520;
+        this._bind();
+        this._startLoop();
+      }
+
+      resize() {
+        const dpr = window.devicePixelRatio || 1;
+        // Use parent's width if canvas itself reports 0 (e.g. just un-hidden)
+        const rect = this.cv.getBoundingClientRect();
+        const parentRect = this.cv.parentElement ? this.cv.parentElement.getBoundingClientRect() : rect;
+        this.width = rect.width > 10 ? rect.width : (parentRect.width > 10 ? parentRect.width : 820);
+        this.height = 520;
+        this.cv.width = Math.round(this.width * dpr);
+        this.cv.height = Math.round(this.height * dpr);
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.scale(dpr, dpr);
+      }
+
+      load(pts, labels, sents, vectors) {
+        this.pts = pts;
+        this.labels = labels;
+        this.sents = sents;
+        this.vectors = vectors;
+        this.resize();
+        this.render();
+      }
+
+      _startLoop() {
+        const loop = () => {
+          this._update();
+          this.animFrameId = requestAnimationFrame(loop);
+        };
+        this.animFrameId = requestAnimationFrame(loop);
+      }
+
+      _update() {
+        let needsRender = false;
+
+        // Handle drag momentum
+        if (!this.drag && (Math.abs(this.vx) > 0.0001 || Math.abs(this.vy) > 0.0001)) {
+          this.ry += this.vx;
+          this.rx += this.vy;
+          this.rx = Math.max(-1.4, Math.min(1.4, this.rx));
+          this.vx *= 0.90;
+          this.vy *= 0.90;
+          needsRender = true;
+        }
+
+        // Auto-orbiting animation (pauses while hovering or when user paused it)
+        if (this.pts.length && this.animating && !this.drag && !this.isHoveringCanvas && !this.isPausedByUser) {
+          this.ry += 0.0035; // gentle, steady orbital rotation
+          needsRender = true;
+        }
+
+        if (needsRender) {
+          this.render();
+        }
+      }
+
+      _rot([x, y, z]) {
+        // Yaw (around Y)
+        const cy = Math.cos(this.ry), sy = Math.sin(this.ry);
+        const x1 = cy * x + sy * z;
+        const z1 = -sy * x + cy * z;
+        const y1 = y;
+
+        // Pitch (around X)
+        const cx = Math.cos(this.rx), sx = Math.sin(this.rx);
+        const y2 = cx * y1 - sx * z1;
+        const z2 = sx * y1 + cx * z1;
+        return [x1, y2, z2];
+      }
+
+      _proj([x, y, z]) {
+        const W = this.width, H = this.height;
+        const sc = Math.min(W, H) * 0.31 * this.zoom;
+        const fov = 3.6;
+        const persp = fov / (fov + z * 0.85);
+        return [W / 2 + x * sc * persp, H / 2 - y * sc * persp, z];
+      }
+
+      render() {
+        const ctx = this.ctx, W = this.width, H = this.height;
+        ctx.clearRect(0, 0, W, H);
+        if (!this.pts.length) return;
+
+        this._drawWireframeBox(ctx);
+
+        // Project points into 2D screen coordinates
+        const proj = this.pts.map(p => this._proj(this._rot(p)));
+
+        // 1. Draw semantic dashed connection lines between similar sentences
+        ctx.save();
+        for (let i = 0; i < this.pts.length; i++) {
+          for (let j = i + 1; j < this.pts.length; j++) {
+            const sim = cosineSim(this.vectors[i], this.vectors[j]);
+            if (sim >= 0.58) {
+              const isHovConnected = this.hov === i || this.hov === j;
+              ctx.beginPath();
+              ctx.moveTo(proj[i][0], proj[i][1]);
+              ctx.lineTo(proj[j][0], proj[j][1]);
+              ctx.setLineDash(isHovConnected ? [] : [4, 4]);
+              ctx.strokeStyle = isHovConnected ? '#2563eb' : 'rgba(148, 163, 184, 0.45)';
+              ctx.lineWidth = isHovConnected ? 2.2 : 1.2;
+              ctx.stroke();
+
+              // Draw small similarity badge on midpoint
+              if (isHovConnected || sim >= 0.72) {
+                const mx = (proj[i][0] + proj[j][0]) / 2;
+                const my = (proj[i][1] + proj[j][1]) / 2;
+                ctx.setLineDash([]);
+                const simText = `${Math.round(sim * 100)}% match`;
+                ctx.font = isHovConnected ? "bold 10px system-ui" : "9.5px system-ui";
+                const tw = ctx.measureText(simText).width;
+
+                ctx.fillStyle = isHovConnected ? '#eff6ff' : '#f8fafc';
+                ctx.strokeStyle = isHovConnected ? '#2563eb' : '#cbd5e1';
+                ctx.lineWidth = 1;
+                this._roundRect(ctx, mx - tw / 2 - 5, my - 16, tw + 10, 16, 4, true, true);
+
+                ctx.fillStyle = isHovConnected ? '#1d4ed8' : '#475569';
+                ctx.textAlign = 'center';
+                ctx.fillText(simText, mx, my - 4);
+              }
+            }
+          }
+        }
+        ctx.restore();
+
+        // 2. Anti-collision label positioning engine
+        // Assign label offsets so close pairs in 2D space do not overlap!
+        const labelLayout = proj.map((p, i) => ({
+          i,
+          px: p[0],
+          py: p[1],
+          pz: p[2],
+          dirY: 1,  // 1: below, -1: above
+          offsetX: 0
+        }));
+
+        for (let i = 0; i < labelLayout.length; i++) {
+          for (let j = i + 1; j < labelLayout.length; j++) {
+            const dx = labelLayout[i].px - labelLayout[j].px;
+            const dy = labelLayout[i].py - labelLayout[j].py;
+            const dist = Math.hypot(dx, dy);
+
+            // If screen projection points are close (< 85px)
+            if (dist < 85) {
+              if (labelLayout[i].py <= labelLayout[j].py) {
+                labelLayout[i].dirY = -1; // place above
+                labelLayout[j].dirY = 1;  // place below
+              } else {
+                labelLayout[i].dirY = 1;
+                labelLayout[j].dirY = -1;
+              }
+              if (Math.abs(dx) < 40) {
+                labelLayout[i].offsetX = dx < 0 ? -18 : 18;
+                labelLayout[j].offsetX = dx < 0 ? 18 : -18;
+              }
+            }
+          }
+        }
+
+        // 3. Sort points back-to-front by depth Z (Painter's algorithm)
+        const order = proj.map((_, i) => i).sort((a, b) => proj[a][2] - proj[b][2]);
+        this.labelBounds = [];
+
+        // Draw non-hovered points and cards first
+        const drawPoint = (i, isHovered) => {
+          const p = labelLayout[i];
+          const cl = this.labels[i] % CL_STROKE.length;
+          const stroke = CL_STROKE[cl], fill = CL_FILL[cl];
+          const r = isHovered ? 8 : 5.5;
+
+          // Glow halo for dot
+          if (isHovered) {
+            ctx.beginPath();
+            ctx.arc(p.px, p.py, r + 5, 0, Math.PI * 2);
+            ctx.fillStyle = stroke + '25';
+            ctx.fill();
+          }
+
+          // Draw dot
+          ctx.beginPath();
+          ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
+          ctx.fillStyle = isHovered ? stroke : fill;
+          ctx.fill();
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = isHovered ? 2.5 : 1.5;
+          ctx.stroke();
+
+          // Card geometry
+          const text = this.sents[i];
+          ctx.font = isHovered ? "bold 12px system-ui" : "500 11.5px system-ui";
+          const textWidth = ctx.measureText(text).width;
+          const cardW = textWidth + 28;
+          const cardH = 26;
+
+          const cardX = p.px + p.offsetX - cardW / 2;
+          const cardY = p.dirY === -1
+            ? p.py - r - cardH - 8
+            : p.py + r + 8;
+
+          // Record bounds for click and hover hit testing
+          this.labelBounds[i] = { x: cardX, y: cardY, w: cardW, h: cardH, px: p.px, py: p.py, r };
+
+          // Connecting anchor stem line from point to label card
+          ctx.beginPath();
+          ctx.moveTo(p.px, p.dirY === -1 ? p.py - r : p.py + r);
+          ctx.lineTo(p.px + p.offsetX, p.dirY === -1 ? cardY + cardH : cardY);
+          ctx.strokeStyle = isHovered ? stroke : 'rgba(148, 163, 184, 0.6)';
+          ctx.lineWidth = isHovered ? 1.5 : 1;
+          ctx.stroke();
+
+          // Draw label card background pill
+          ctx.save();
+          if (isHovered) {
+            ctx.shadowColor = 'rgba(15, 23, 42, 0.22)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 4;
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 2;
+          } else {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.05)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.strokeStyle = 'rgba(203, 213, 225, 0.9)';
+            ctx.lineWidth = 1;
+          }
+
+          this._roundRect(ctx, cardX, cardY, cardW, cardH, 6, true, true);
+          ctx.restore();
+
+          // Colored cluster indicator dot inside card
+          ctx.beginPath();
+          ctx.arc(cardX + 11, cardY + cardH / 2, 4, 0, Math.PI * 2);
+          ctx.fillStyle = stroke;
+          ctx.fill();
+
+          // Sentence full text (100% visible, crisp)
+          ctx.font = isHovered ? "bold 12px system-ui" : "500 11.5px system-ui";
+          ctx.fillStyle = isHovered ? '#0f172a' : '#1e293b';
+          ctx.textAlign = 'left';
+          ctx.fillText(text, cardX + 20, cardY + cardH / 2 + 4);
+
+          // Elevated cluster chip on hover
+          if (isHovered) {
+            const clusterTitle = CL_NAMES[cl] || `Cluster ${cl + 1}`;
+            ctx.font = "bold 9.5px system-ui";
+            const cw = ctx.measureText(clusterTitle).width;
+            const chipY = cardY - 18;
+            const chipX = cardX + cardW / 2 - cw / 2 - 6;
+
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 1;
+            this._roundRect(ctx, chipX, chipY, cw + 12, 16, 4, true, true);
+
+            ctx.fillStyle = stroke;
+            ctx.textAlign = 'center';
+            ctx.fillText(clusterTitle, cardX + cardW / 2, chipY + 11.5);
+          }
+        };
+
+        // First draw all non-hovered points
+        for (const i of order) {
+          if (i !== this.hov) drawPoint(i, false);
+        }
+        // Draw hovered point last so it sits on top of everything
+        if (this.hov >= 0 && this.hov < this.pts.length) {
+          drawPoint(this.hov, true);
+        }
+      }
+
+      _roundRect(ctx, x, y, w, h, r, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+      }
+
+      _drawWireframeBox(ctx) {
+        ctx.save();
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = '#e2e8f0';
+
+        const corners = [-1.15, 1.15];
+        const floorY = -1.15;
+
+        // Floor grid
+        for (let g = -1.15; g <= 1.151; g += 0.575) {
+          const p1 = this._proj(this._rot([g, floorY, -1.15]));
+          const p2 = this._proj(this._rot([g, floorY, 1.15]));
+          ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+
+          const p3 = this._proj(this._rot([-1.15, floorY, g]));
+          const p4 = this._proj(this._rot([1.15, floorY, g]));
+          ctx.beginPath(); ctx.moveTo(p3[0], p3[1]); ctx.lineTo(p4[0], p4[1]); ctx.stroke();
+        }
+
+        // Outer wireframe bounding cage edges
+        ctx.strokeStyle = '#cbd5e1';
+        for (const x of corners) {
+          for (const y of corners) {
+            const a = this._proj(this._rot([x, y, corners[0]]));
+            const b = this._proj(this._rot([x, y, corners[1]]));
+            ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+          }
+        }
+        for (const x of corners) {
+          for (const z of corners) {
+            const a = this._proj(this._rot([x, corners[0], z]));
+            const b = this._proj(this._rot([x, corners[1], z]));
+            ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+          }
+        }
+        for (const y of corners) {
+          for (const z of corners) {
+            const a = this._proj(this._rot([corners[0], y, z]));
+            const b = this._proj(this._rot([corners[1], y, z]));
+            ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      _bind() {
+        const c = this.cv;
+
+        // Mouse drag
+        c.addEventListener('mousedown', e => {
+          this.drag = true;
+          this.vx = 0;
+          this.vy = 0;
+          this.lx = e.clientX;
+          this.ly = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => {
+          this.drag = false;
+        });
+
+        window.addEventListener('mousemove', e => {
+          if (this.drag) {
+            const dx = (e.clientX - this.lx) * 0.009;
+            const dy = (e.clientY - this.ly) * 0.009;
+            this.ry += dx;
+            this.rx += dy;
+            this.rx = Math.max(-1.4, Math.min(1.4, this.rx));
+            this.vx = dx * 0.45;
+            this.vy = dy * 0.45;
+            this.lx = e.clientX;
+            this.ly = e.clientY;
+            this.render();
+          }
+        });
+
+        // Zoom
+        c.addEventListener('wheel', e => {
+          e.preventDefault();
+          this.zoom *= e.deltaY < 0 ? 1.08 : 0.92;
+          this.zoom = Math.max(0.4, Math.min(2.8, this.zoom));
+          this.render();
+        }, { passive: false });
+
+        // Hover inspection & click to compare
+        c.addEventListener('mouseenter', () => {
+          this.isHoveringCanvas = true;
+        });
+
+        c.addEventListener('mouseleave', () => {
+          this.isHoveringCanvas = false;
+          if (this.hov !== -1) {
+            this.hov = -1;
+            this.render();
+          }
+          c.style.cursor = 'grab';
+        });
+
+        c.addEventListener('mousemove', e => {
+          if (this.drag || !this.pts.length) return;
+          const rect = c.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+
+          let found = -1;
+          // Hit-test both card rectangle and circle point
+          for (let i = 0; i < this.labelBounds.length; i++) {
+            const b = this.labelBounds[i];
+            if (!b) continue;
+
+            // Check if inside label card
+            const inCard = mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h;
+            // Check if inside 3D dot
+            const inDot = Math.hypot(b.px - mx, b.py - my) < (b.r + 6);
+
+            if (inCard || inDot) {
+              found = i;
+              break;
+            }
+          }
+
+          if (found !== this.hov) {
+            this.hov = found;
+            this.render();
+            c.style.cursor = found >= 0 ? 'pointer' : 'grab';
+          }
+        });
+
+        // Click on a point or card -> selects it in Sentence A of the similarity comparator below!
+        c.addEventListener('click', e => {
+          if (this.hov >= 0 && this.hov < this.sents.length) {
+            const sentence = this.sents[this.hov];
+            simInputA.value = sentence;
+            if ([...simSelectA.options].some(o => o.value === sentence)) {
+              simSelectA.value = sentence;
+            }
+            updateSimilarityComparison();
+          }
+        });
+      }
+    }
+
+    // ── DOM References
+    const embedCorpus = document.getElementById('embed-corpus');
+    const btnEmbed = document.getElementById('btn-embed');
+    const canvasWrap = document.getElementById('canvas-wrap');
+    const embedCanvas = document.getElementById('embed-canvas');
+    const embedHint = document.getElementById('embed-hint');
+    const embedLegend = document.getElementById('embed-legend');
+
+    // Toolbar buttons
+    const btnAnimToggle = document.getElementById('btn-anim-toggle');
+    const animIcon = document.getElementById('anim-icon');
+    const animText = document.getElementById('anim-text');
+    const btnResetView = document.getElementById('btn-reset-view');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+
+    const simCard = document.getElementById('sim-card');
+    const simSelectA = document.getElementById('sim-select-a');
+    const simSelectB = document.getElementById('sim-select-b');
+    const simInputA = document.getElementById('sim-input-a');
+    const simInputB = document.getElementById('sim-input-b');
+    const simScoreText = document.getElementById('sim-score-text');
+    const simBadge = document.getElementById('sim-badge');
+    const simBarFill = document.getElementById('sim-bar-fill');
+    const simExplain = document.getElementById('sim-explanation');
+    const simPresetsRow = document.getElementById('sim-presets');
+
+    const scatter = new Scatter3D(embedCanvas);
+
+    // Animation Controls Wiring
+    btnAnimToggle.addEventListener('click', () => {
+      scatter.isPausedByUser = !scatter.isPausedByUser;
+      if (scatter.isPausedByUser) {
+        animIcon.textContent = '▶️';
+        animText.textContent = 'Play Animation';
+        btnAnimToggle.style.background = '#e2e8f0';
+      } else {
+        animIcon.textContent = '⏸️';
+        animText.textContent = 'Pause Animation';
+        btnAnimToggle.style.background = '#f8fafc';
+      }
+    });
+
+    btnResetView.addEventListener('click', () => {
+      scatter.ry = 0.65;
+      scatter.rx = -0.32;
+      scatter.zoom = 1.0;
+      scatter.vx = 0;
+      scatter.vy = 0;
+      scatter.render();
+    });
+
+    btnZoomIn.addEventListener('click', () => {
+      scatter.zoom = Math.min(2.8, scatter.zoom * 1.15);
+      scatter.render();
+    });
+
+    btnZoomOut.addEventListener('click', () => {
+      scatter.zoom = Math.max(0.4, scatter.zoom * 0.87);
+      scatter.render();
+    });
+
+    window.addEventListener('resize', () => {
+      if (canvasWrap.style.display !== 'none') {
+        scatter.resize();
+        scatter.render();
+      }
+    });
+
+    // ── Embed and Plot Click Handler
+    btnEmbed.addEventListener('click', runEmbedAndPlot);
+
+    function runEmbedAndPlot() {
+      const lines = embedCorpus.value.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) {
+        alert('Please enter at least 2 sentences.');
+        return;
+      }
+
+      // 1. Calculate semantic embeddings
+      const vectors = lines.map(s => getSentenceEmbedding(s));
+
+      // 2. Project into 3D using Metric MDS
+      const coords3D = mds3D(vectors);
+
+      // 3. Cluster sentences based on semantic similarity
+      const labels = clusterSentences(vectors);
+
+      canvasWrap.style.display = 'block';
+      embedHint.style.display = 'block';
+
+      scatter.load(coords3D, labels, lines, vectors);
+
+      // 4. Render Group Legend
+      const groups = {};
+      labels.forEach((cl, i) => {
+        if (!groups[cl]) groups[cl] = [];
+        groups[cl].push(lines[i]);
+      });
+      embedLegend.innerHTML = '';
+      for (const [cl, sents] of Object.entries(groups)) {
+        const idx = +cl;
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `
+      <span class="legend-dot" style="background:${CL_FILL[idx % CL_FILL.length]};border-color:${CL_STROKE[idx % CL_STROKE.length]}"></span>
+      <strong>Cluster ${idx + 1}</strong>: ${sents.map(s => s.length > 28 ? s.slice(0, 26) + '…' : s).join(' · ')}`;
+        embedLegend.appendChild(item);
+      }
+
+      // 5. Populate and show Sentence Similarity Comparator
+      populateSimDropdowns(lines);
+      simCard.style.display = 'block';
+      updateSimilarityComparison();
+    }
+
+    // ── Sentence Similarity Comparator Logic
+    function populateSimDropdowns(sentences) {
+      const prevA = simSelectA.value || sentences[0];
+      const prevB = simSelectB.value || sentences[1] || sentences[0];
+
+      simSelectA.innerHTML = '';
+      simSelectB.innerHTML = '';
+
+      sentences.forEach((s, i) => {
+        const optA = new Option(`${i + 1}. ${s}`, s);
+        const optB = new Option(`${i + 1}. ${s}`, s);
+        simSelectA.add(optA);
+        simSelectB.add(optB);
+      });
+
+      simSelectA.value = sentences.includes(prevA) ? prevA : sentences[0];
+      simSelectB.value = sentences.includes(prevB) ? prevB : (sentences[1] || sentences[0]);
+      simInputA.value = simSelectA.value;
+      simInputB.value = simSelectB.value;
+    }
+
+    simSelectA.addEventListener('change', () => {
+      simInputA.value = simSelectA.value;
+      updateSimilarityComparison();
+    });
+    simSelectB.addEventListener('change', () => {
+      simInputB.value = simSelectB.value;
+      updateSimilarityComparison();
+    });
+    simInputA.addEventListener('input', updateSimilarityComparison);
+    simInputB.addEventListener('input', updateSimilarityComparison);
+
+    // Preset buttons
+    simPresetsRow.querySelectorAll('.sim-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const a = btn.getAttribute('data-a');
+        const b = btn.getAttribute('data-b');
+        simInputA.value = a;
+        simInputB.value = b;
+        if ([...simSelectA.options].some(o => o.value === a)) simSelectA.value = a;
+        if ([...simSelectB.options].some(o => o.value === b)) simSelectB.value = b;
+        updateSimilarityComparison();
+      });
+    });
+
+    function updateSimilarityComparison() {
+      const sentA = (simInputA.value || simSelectA.value || '').trim();
+      const sentB = (simInputB.value || simSelectB.value || '').trim();
+
+      if (!sentA || !sentB) {
+        simScoreText.textContent = '0.00';
+        simBarFill.style.width = '0%';
+        simBadge.className = 'sim-badge sim-badge-low';
+        simBadge.textContent = 'Awaiting input';
+        simExplain.textContent = 'Please enter or select two sentences above.';
+        return;
+      }
+
+      const vecA = getSentenceEmbedding(sentA);
+      const vecB = getSentenceEmbedding(sentB);
+      const sim = cosineSim(vecA, vecB);
+      const pct = Math.round(sim * 100);
+
+      simScoreText.textContent = sim.toFixed(2) + ` (${pct}%)`;
+      simBarFill.style.width = pct + '%';
+
+      if (sim >= 0.75) {
+        simBarFill.style.backgroundColor = '#16a34a';
+        simBadge.className = 'sim-badge sim-badge-high';
+        simBadge.textContent = '🟢 High Semantic Similarity';
+        simExplain.innerHTML = `Strong conceptual alignment. Even if vocabulary differs (synonyms, phrasing), both sentences project to nearly the same coordinates in embedding space.`;
+      } else if (sim >= 0.40) {
+        simBarFill.style.backgroundColor = '#d97706';
+        simBadge.className = 'sim-badge sim-badge-mid';
+        simBadge.textContent = '🟡 Moderate Similarity';
+        simExplain.innerHTML = `Partial semantic overlap. The sentences may share a domain, syntactic pattern, or context, but diverge on key actors or actions.`;
+      } else {
+        simBarFill.style.backgroundColor = '#dc2626';
+        simBadge.className = 'sim-badge sim-badge-low';
+        simBadge.textContent = '🔴 Low / Disconnected Similarity';
+        simExplain.innerHTML = `Distinct semantic domains. The model's embedding vectors point in largely orthogonal directions in high-dimensional space.`;
+      }
+    }
+
+    // ── Auto-initialize 3D Embeddings and Similarity Comparator on load
+    window.addEventListener('DOMContentLoaded', () => {
+      runEmbedAndPlot();
+    });
+    // Also run immediately in case DOMContentLoaded already fired
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      runEmbedAndPlot();
+    }
+  </script>
+</body>
+
+</html>
